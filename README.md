@@ -1,6 +1,6 @@
-# NAMAMI
+# NAMAMI Habit Tracker
 
-NAMAMI is an offline-first habit tracker built with React + Vite.
+NAMAMI Habit Tracker is an offline-first habit tracker.
 It is designed for private, on-device tracking with no account, no backend, and no cloud dependency.
 
 ## Development Notice
@@ -21,7 +21,7 @@ npm run dev
 
 App URL: `http://localhost:5173`
 
-## Why NAMAMI
+## Why NAMAMI Habit Tracker
 
 - Local-first privacy: your data stays in your browser storage
 - Fast daily flow: check in habits from one dashboard
