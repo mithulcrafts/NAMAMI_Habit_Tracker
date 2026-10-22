@@ -1,9 +1,14 @@
 import { useState } from 'react'
+import { isValidScoringPatch } from '../utils/scoringValidation'
 
 export const Settings = ({ settings, onUpdate, onAdjustMithura }) => {
   const [local, setLocal] = useState(() => ({ ...settings }))
 
   const handleSave = () => {
+    if (!isValidScoringPatch(local)) {
+      alert('Please enter bonus amounts of 0 or more.')
+      return
+    }
     onUpdate(local)
   }
 

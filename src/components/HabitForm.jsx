@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import { pickHabitConfiguration } from '../utils/habitConfiguration'
+import { isValidScoringPatch } from '../utils/scoringValidation'
 
 const defaultData = {
   name: '',
@@ -80,6 +81,10 @@ export const HabitForm = ({ onSave, onCancel, initial }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!isValidScoringPatch(form)) {
+      alert('Please enter valid points and bonus amounts of 0 or more.')
+      return
+    }
     
     // Validation: goalTarget must be > 0 if goal type is not binary
     if (form.goalType !== 'binary' && (!form.goalTarget || form.goalTarget <= 0)) {
@@ -103,7 +108,7 @@ export const HabitForm = ({ onSave, onCancel, initial }) => {
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    if (!form.name.trim()) return false
+    if (!form.name.trim() || !isValidScoringPatch(form)) return false
     if (form.goalType !== 'binary' && (!form.goalTarget || form.goalTarget <= 0)) return false
     if (!form.isDailyHabit && (!form.targetDays || form.targetDays <= 0)) return false
     return true

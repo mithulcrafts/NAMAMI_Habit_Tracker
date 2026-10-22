@@ -9,6 +9,7 @@ import {
 import { loadStoredState, STORAGE_KEY } from '../utils/stateStorage'
 import { pickHabitConfiguration } from '../utils/habitConfiguration'
 import { openEditingSession } from '../utils/editingSession'
+import { isValidRewardCost, isValidScoringPatch } from '../utils/scoringValidation'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -360,6 +361,7 @@ const migrateData = (saved) => {
 
 const createAppActions = ({ state, setState, points }) => {
   const addHabit = (data) => {
+    if (!isValidScoringPatch(data)) return
     const newHabit = {
       id: crypto.randomUUID(),
       history: {},
@@ -381,6 +383,7 @@ const createAppActions = ({ state, setState, points }) => {
 
   const updateHabit = (id, data) => {
     const configuration = pickHabitConfiguration(data)
+    if (!isValidScoringPatch(configuration)) return
     setState((prev) => ({
       ...prev,
       habits: prev.habits.map((h) => (h.id === id ? { ...h, ...configuration } : h)),
@@ -439,6 +442,7 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const addReward = (reward) => {
+    if (!isValidRewardCost(reward.requiredPoints)) return
     setState((prev) => ({
       ...prev,
       rewards: [...prev.rewards, { id: crypto.randomUUID(), ...reward }],
@@ -448,7 +452,8 @@ const createAppActions = ({ state, setState, points }) => {
   const claimReward = (rewardId) => {
     const reward = state.rewards.find((r) => r.id === rewardId && !r.deleted)
     if (!reward) return
-    const cost = reward.requiredPoints || 0
+    const cost = reward.requiredPoints
+    if (!isValidRewardCost(cost)) return
     if (points < cost) return
 
     setState((prev) => ({
@@ -537,6 +542,7 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const updateReward = (rewardId, data) => {
+    if (Object.hasOwn(data, 'requiredPoints') && !isValidRewardCost(data.requiredPoints)) return
     setState((prev) => ({
       ...prev,
       rewards: prev.rewards.map((r) => (r.id === rewardId ? { ...r, ...data } : r)),
@@ -556,6 +562,7 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const adjustMithura = (amount) => {
+    if (!Number.isFinite(amount)) return
     setState((prev) => ({
       ...prev,
       manualAdjustment: (prev.manualAdjustment || 0) + amount,
@@ -563,10 +570,12 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const updateSettings = (partial) => {
+    if (!isValidScoringPatch(partial)) return
     setState((prev) => ({ ...prev, settings: { ...prev.settings, ...partial } }))
   }
 
   const updateHabitGamification = (habitId, useGlobal, customPoints, customStreakBonuses) => {
+    if (!useGlobal && !isValidScoringPatch({ customPoints, customStreakBonuses })) return
     setState((prev) => ({
       ...prev,
       habits: prev.habits.map((h) =>

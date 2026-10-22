@@ -1,3 +1,5 @@
+import { isValidScoringPatch } from '../utils/scoringValidation'
+
 const getThemeClasses = () => {
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
   return {
@@ -10,6 +12,11 @@ export const HabitGamificationPanel = ({ habit, onUpdate }) => {
   const customPoints = habit.customPoints ?? 10
   const customBonuses = habit.customStreakBonuses ?? { 3: 2, 7: 5, 30: 10 }
   const theme = getThemeClasses()
+  const update = (id, useGlobal, points, bonuses) => {
+    if (isValidScoringPatch({ customPoints: points, customStreakBonuses: bonuses })) {
+      onUpdate(id, useGlobal, points, bonuses)
+    }
+  }
 
   return (
     <div className="glass rounded-xl p-4">
@@ -25,7 +32,7 @@ export const HabitGamificationPanel = ({ habit, onUpdate }) => {
             min="1"
             value={customPoints}
             onChange={(e) =>
-              onUpdate(
+              update(
                 habit.id,
                 false,
                 Number(e.target.value),
@@ -48,7 +55,7 @@ export const HabitGamificationPanel = ({ habit, onUpdate }) => {
                   min="0"
                   value={customBonuses?.[days] ?? 0}
                   onChange={(e) =>
-                    onUpdate(
+                    update(
                       habit.id,
                       false,
                       customPoints,

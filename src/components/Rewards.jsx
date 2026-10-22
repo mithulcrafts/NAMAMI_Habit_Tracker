@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isValidRewardCost } from '../utils/scoringValidation'
 
 const getThemeClasses = () => {
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
@@ -42,6 +43,10 @@ export const Rewards = ({
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) return
+    if (!isValidRewardCost(Number(form.requiredPoints))) {
+      alert('Please enter a reward cost of at least 1 MITHURA.')
+      return
+    }
     onAdd({ ...form, requiredPoints: Number(form.requiredPoints) })
     setForm({ name: '', requiredPoints: 50 })
   }
@@ -53,6 +58,10 @@ export const Rewards = ({
 
   const handleSaveEdit = () => {
     if (!form.name.trim()) return
+    if (!isValidRewardCost(Number(form.requiredPoints))) {
+      alert('Please enter a reward cost of at least 1 MITHURA.')
+      return
+    }
     onUpdate(editing.id, { name: form.name, requiredPoints: Number(form.requiredPoints) })
     setEditing(null)
     setForm({ name: '', requiredPoints: 50 })
