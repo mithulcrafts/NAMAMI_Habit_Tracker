@@ -16,7 +16,7 @@ export const legacyStats = (habits, settings) => {
     let cursor = new Date()
     cursor.setHours(0, 0, 0, 0)
     const today = todayKey()
-    
+
     while (true) {
       const key = formatDate(cursor)
       const isFrozen = habit.freezeDates?.[key] === true
@@ -142,4 +142,3 @@ export const legacyStats = (habits, settings) => {
     globalStreak,
   }
 }
-
