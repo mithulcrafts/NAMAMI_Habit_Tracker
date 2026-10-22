@@ -16,6 +16,15 @@ export const validateStoredState = (saved) => {
   for (const key of ['claimedRewards', 'customQuotes', 'earnedBadges']) {
     if (saved[key] !== undefined && !Array.isArray(saved[key])) throw new Error(`Cannot read saved ${key}.`)
   }
+  if (saved.streakEarnings !== undefined) {
+    const journal = saved.streakEarnings
+    if (!isRecord(journal) || journal.version !== 1 || !Number.isFinite(journal.opening) || journal.opening < 0 ||
+        !Array.isArray(journal.seen) || journal.seen.some(id => typeof id !== 'string') ||
+        !Array.isArray(journal.awards) || journal.awards.some(award => !isRecord(award) ||
+          typeof award.id !== 'string' || !Number.isFinite(award.amount) || award.amount < 0)) {
+      throw new Error('Saved bonus earnings cannot be read safely. The original data has not been replaced.')
+    }
+  }
   for (const habit of saved.habits) {
     if (!isRecord(habit) || typeof habit.id !== 'string' || !habit.id || typeof habit.name !== 'string') {
       throw new Error('A saved habit cannot be read safely.')
@@ -38,14 +47,14 @@ export const loadStoredState = async (storage, migrate) => {
     // A malformed/falsy value is NOT an empty database.
     if (saved === null || saved === undefined) continue
     validateStoredState(saved)
-    if ((saved.schemaVersion ?? 1) < SCHEMA_VERSION || key !== STORAGE_KEY) {
+    const migrated = migrate(saved)
+    validateStoredState(migrated)
+    if ((saved.schemaVersion ?? 1) < SCHEMA_VERSION || key !== STORAGE_KEY || migrated !== saved) {
       const recoveryKey = `namami-recovery:${key}:${crypto.randomUUID()}`
       await storage.setItem(recoveryKey, saved)
       const recovery = await storage.getItem(recoveryKey)
       if (JSON.stringify(recovery) !== JSON.stringify(saved)) throw new Error('Could not verify a recovery copy. The original data has not been replaced.')
     }
-    const migrated = migrate(saved)
-    validateStoredState(migrated)
     // Older versions may omit optional collections. Retain all other fields.
     return { customQuotes: [], claimedRewards: [], earnedBadges: [], ...migrated }
   }

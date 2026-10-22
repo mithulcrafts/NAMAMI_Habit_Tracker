@@ -13,6 +13,8 @@ import { isValidRewardCost, isValidScoringPatch } from '../utils/scoringValidati
 import { isHabitCompletedOnDate } from '../utils/habitProgress'
 import { useToday } from '../hooks/useToday'
 import { currentStreak, getHabitPeriods, getGlobalPeriods } from '../utils/schedule'
+import { initializeStreakEarnings, reconcileStreakEarnings, earnedStreakPoints } from '../utils/streakEarnings'
+import { legacyStats } from '../utils/legacyScoring'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -107,7 +109,7 @@ const BADGE_DEFINITIONS = [
 
 const AppContext = createContext()
 
-const deriveStats = (habits, settings, today = todayKey()) => {
+const deriveStats = (habits, settings, today = todayKey(), journal) => {
   const enriched = habits.map((habit) => {
     const streak = currentStreak(getHabitPeriods(habit, today), today)
 
@@ -158,11 +160,15 @@ const deriveStats = (habits, settings, today = todayKey()) => {
       })()
     : 0
 
-  const totalPoints = basePoints + dailyBonusPoints + perHabitStreakBonus + globalStreakBonus
+  const currentBonus = perHabitStreakBonus + globalStreakBonus
+  const nonStreakPoints = basePoints + dailyBonusPoints
+  const totalPoints = nonStreakPoints + (journal ? earnedStreakPoints(journal) : currentBonus)
 
   return {
     habits: enriched,
     points: totalPoints,
+    currentBonus,
+    nonStreakPoints,
     bonusDays,
     globalStreak,
   }
@@ -217,6 +223,16 @@ const pickQuote = (category, customQuotes, daySeed) => {
   if (!combined.length) return 'Keep moving forward.'
   const idx = daySeed % combined.length
   return combined[idx]
+}
+
+const prepareEarnings = (saved) => {
+  if (saved.streakEarnings) return saved
+  const current = deriveStats(saved.habits, saved.settings)
+  const releasedPoints = legacyStats(saved.habits, saved.settings).points
+  // Keep any balance that the released app would display. Historical award
+  // amounts were not stored, so do not invent retroactive milestone payments.
+  const opening = Math.max(current.currentBonus, releasedPoints - current.nonStreakPoints, 0)
+  return initializeStreakEarnings(saved, opening)
 }
 
 const migrateData = (saved) => {
@@ -276,9 +292,9 @@ const migrateData = (saved) => {
         freezeDates: h.freezeDates ?? {},
       }))
     }
-    return migrated
+    return prepareEarnings(migrated)
   }
-  return saved
+  return prepareEarnings(saved)
 }
 
 const createAppActions = ({ state, setState, points }) => {
@@ -605,6 +621,7 @@ export const AppProvider = ({ children }) => {
         lastSaved.current = JSON.stringify(await localforage.getItem(STORAGE_KEY))
         if (!active) return
         if (saved !== null) setState(saved)
+        else setState(previous => prepareEarnings(previous))
         setStorageError(null)
         // Only a successful read may enable saving or show the habit controls.
         setLoading(false)
@@ -673,8 +690,8 @@ export const AppProvider = ({ children }) => {
   }, [state.settings?.theme])
 
   const { habits, points: lifetimePoints, bonusDays, globalStreak } = useMemo(
-    () => deriveStats(state.habits, state.settings, today),
-    [state.habits, state.settings, today],
+    () => deriveStats(state.habits, state.settings, today, state.streakEarnings),
+    [state.habits, state.settings, state.streakEarnings, today],
   )
 
   const pointsSpent = useMemo(
@@ -706,16 +723,16 @@ export const AppProvider = ({ children }) => {
       const hasStreakUpdates = updatedHabits.some((habit, idx) => habit !== prev.habits[idx])
 
       if (!badgesToAdd.length && !hasStreakUpdates) {
-        return prev
+        return reconcileStreakEarnings(prev, prev, today)
       }
 
       return {
-        ...prev,
+        ...reconcileStreakEarnings(prev, prev, today),
         earnedBadges: badgesToAdd.length > 0 ? [...(prev.earnedBadges || []), ...badgesToAdd] : prev.earnedBadges,
         habits: hasStreakUpdates ? updatedHabits : prev.habits,
       }
     })
-  }, [habits, points, loading])
+  }, [habits, points, loading, today])
 
   const quoteOfDay = useMemo(() => {
     const seed = Number(today.replaceAll('-', ''))
@@ -738,7 +755,10 @@ export const AppProvider = ({ children }) => {
     updateSettings,
     updateHabitGamification,
     adjustMithura,
-  } = createAppActions({ state, setState, points })
+  } = createAppActions({ state, points, setState: updater => setState(previous => {
+    const next = typeof updater === 'function' ? updater(previous) : updater
+    return reconcileStreakEarnings(previous, next)
+  }) })
 
   const value = {
     loading,
