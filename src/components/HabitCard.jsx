@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { todayKey } from '../utils/date'
+import { isHabitCompletedOnDate } from '../utils/habitProgress'
 
 const getThemeClasses = () => {
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
@@ -40,7 +41,7 @@ export const HabitCard = ({
   
   // For count/duration, get the selected date's value
   const todayValue = habit.dailyValueHistory?.[dateKey] ?? null
-  const goalMet = habit.goalType === 'binary' ? doneToday : (todayValue ?? 0) >= (habit.goalTarget || 1)
+  const goalMet = isHabitCompletedOnDate(habit, dateKey)
   const isFrozen = habit.freezeDates?.[dateKey] === true
   const isFuture = dateKey > today
   const canUseFreeze = Boolean(onUseStreakFreeze) && !isFuture && !goalMet && !isFrozen && streakFreezes > 0

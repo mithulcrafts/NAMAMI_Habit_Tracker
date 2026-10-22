@@ -1,4 +1,5 @@
 import CalendarHeatmap from 'react-calendar-heatmap'
+import { getRecordedDates, isHabitCompletedOnDate } from '../utils/habitProgress'
 import 'react-calendar-heatmap/dist/styles.css'
 
 export const GlobalHeatmap = ({ habits }) => {
@@ -20,15 +21,8 @@ export const GlobalHeatmap = ({ habits }) => {
   // Aggregate all habits per date
   const aggregated = {}
   habits.forEach((habit) => {
-    Object.entries(habit.history || {}).forEach(([date, done]) => {
-      let isMet = false
-      if (habit.goalType === 'binary') {
-        isMet = done === true
-      } else {
-        const value = habit.dailyValueHistory?.[date] ?? 0
-        isMet = value >= (habit.goalTarget || 1)
-      }
-      if (isMet) aggregated[date] = (aggregated[date] || 0) + 1
+    getRecordedDates(habit).forEach(date => {
+      if (isHabitCompletedOnDate(habit, date)) aggregated[date] = (aggregated[date] || 0) + 1
     })
   })
 

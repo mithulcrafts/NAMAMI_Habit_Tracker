@@ -1,4 +1,5 @@
 import { todayKey } from '../utils/date'
+import { isHabitCompletedOnDate } from '../utils/habitProgress'
 
 const Stat = ({ label, value, hint }) => (
   <div className="glass rounded-xl p-4">
@@ -10,7 +11,7 @@ const Stat = ({ label, value, hint }) => (
 
 export const DashboardStats = ({ habits, points, lifetimePoints, pointsSpent, bonusDays, globalStreak }) => {
   const today = todayKey()
-  const completedToday = habits.filter((h) => h.history?.[today])
+  const completedToday = habits.filter((h) => isHabitCompletedOnDate(h, today))
   const bestStreak = Math.max(0, ...habits.map((h) => h.streak || 0))
 
   const totalEarned = lifetimePoints ?? points

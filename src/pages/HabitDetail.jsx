@@ -3,6 +3,7 @@ import { ProgressCharts } from '../components/ProgressCharts'
 import { Badges } from '../components/Badges'
 import { HabitGamificationPanel } from '../components/HabitGamificationPanel'
 import { formatDate, todayKey } from '../utils/date'
+import { getRecordedDates, isHabitCompletedOnDate } from '../utils/habitProgress'
 
 export const HabitDetail = ({
   habit,
@@ -14,15 +15,8 @@ export const HabitDetail = ({
   if (!habit) return null
   
   const completionRate = habit.isDailyHabit ? habit.streak * 10 : Math.min(100, Math.round((habit.totalCompleted / habit.targetDays) * 100)) || 0
-  const lastCheck = Object.keys(habit.history || {})
-    .filter((d) => {
-      if (habit.goalType === 'binary') {
-        return habit.history[d] === true
-      } else {
-        const value = habit.dailyValueHistory?.[d] ?? 0
-        return value >= (habit.goalTarget || 1)
-      }
-    })
+  const lastCheck = getRecordedDates(habit)
+    .filter(d => isHabitCompletedOnDate(habit, d))
     .sort()
     .pop()
 

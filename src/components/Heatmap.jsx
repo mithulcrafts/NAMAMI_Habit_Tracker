@@ -1,4 +1,5 @@
 import CalendarHeatmap from 'react-calendar-heatmap'
+import { isHabitCompletedOnDate } from '../utils/habitProgress'
 import 'react-calendar-heatmap/dist/styles.css'
 
 export const Heatmap = ({ history, habitColor, habitName, goalType, goalTarget, dailyValueHistory, freezeDates }) => {
@@ -25,13 +26,9 @@ export const Heatmap = ({ history, habitColor, habitName, goalType, goalTarget, 
     while (cursor <= end) {
       const key = formatDateString(cursor)
       const frozen = (freezeDates || {})[key] === true
-      if (goalType === 'binary') {
-        const done = (history || {})[key] === true
-        vals.push({ date: key, count: done ? 1 : 0, frozen })
-      } else {
-        const value = (dailyValueHistory || {})[key] ?? 0
-        vals.push({ date: key, count: value, frozen })
-      }
+      const done = isHabitCompletedOnDate({ history, goalType, goalTarget, dailyValueHistory }, key)
+      const count = goalType === 'binary' ? (done ? 1 : 0) : (dailyValueHistory?.[key] ?? 0)
+      vals.push({ date: key, count, done, frozen })
       cursor.setDate(cursor.getDate() - -1) // increment by 1 day
     }
     return vals
@@ -73,6 +70,7 @@ export const Heatmap = ({ history, habitColor, habitName, goalType, goalTarget, 
             classForValue={(val) => {
               if (!val) return 'color-empty'
               if (val.frozen) return 'color-freeze'
+              if (val.done) return 'color-github-4'
               if (!val.count) return 'color-empty'
               
               // For binary habits, just show full intensity
@@ -82,7 +80,8 @@ export const Heatmap = ({ history, habitColor, habitName, goalType, goalTarget, 
               const target = goalTarget || 1
               const ratio = val.count / target
               
-              if (ratio >= 1) return 'color-github-4' // Met or exceeded goal
+              // Only a recorded completion receives full intensity. A lower
+              // current target must not turn old partial progress into a success.
               if (ratio >= 0.75) return 'color-github-3' // 75% of goal
               if (ratio >= 0.5) return 'color-github-2' // 50% of goal
               if (ratio > 0) return 'color-github-1' // Some activity

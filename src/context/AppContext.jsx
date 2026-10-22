@@ -10,6 +10,7 @@ import { loadStoredState, STORAGE_KEY } from '../utils/stateStorage'
 import { pickHabitConfiguration } from '../utils/habitConfiguration'
 import { openEditingSession } from '../utils/editingSession'
 import { isValidRewardCost, isValidScoringPatch } from '../utils/scoringValidation'
+import { isHabitCompletedOnDate } from '../utils/habitProgress'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -105,14 +106,6 @@ const BADGE_DEFINITIONS = [
 const AppContext = createContext()
 
 const deriveStats = (habits, settings) => {
-  const isHabitCompletedOnDate = (habit, dateKey) => {
-    if (habit.goalType === 'binary') {
-      return habit.history?.[dateKey] === true
-    }
-    const value = habit.dailyValueHistory?.[dateKey] ?? 0
-    return value >= (habit.goalTarget || 1)
-  }
-
   const enriched = habits.map((habit) => {
     // Compute streak: include today if completed/frozen; otherwise show streak up to yesterday
     let streak = 0
@@ -496,9 +489,7 @@ const createAppActions = ({ state, setState, points }) => {
         const freezeDates = { ...(habit.freezeDates || {}) }
         if (freezeDates[dateKey]) return habit
 
-        const isCompleted = habit.goalType === 'binary'
-          ? habit.history?.[dateKey] === true
-          : (habit.dailyValueHistory?.[dateKey] ?? 0) >= (habit.goalTarget || 1)
+        const isCompleted = isHabitCompletedOnDate(habit, dateKey)
 
         if (isCompleted) return habit
 
