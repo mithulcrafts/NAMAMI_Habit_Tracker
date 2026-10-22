@@ -9,7 +9,7 @@ export const milestoneEvents = (periods, scope, bonuses, repeat = false) => {
   let run = []
   for (const period of periods) {
     streak = period.success ? streak + 1 : 0
-    run = period.success ? [...run, period.key] : []
+    run = period.success ? [...run.slice(-29), period.key] : []
     for (const threshold of [3, 7, 30]) {
       if (streak && (repeat ? streak % threshold === 0 : streak === threshold)) {
         events.push({ id: JSON.stringify([scope, threshold, period.key]),

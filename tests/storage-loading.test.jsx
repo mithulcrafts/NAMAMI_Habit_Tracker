@@ -141,3 +141,17 @@ it('blocks conflicting primary/protected copies on startup and makes both availa
   expect(storage.records.get(KEY)).toEqual(primary)
   expect(storage.records.get('namami-state-v1-protected')).toEqual(protectedCopy)
 })
+
+it.each([
+  { streakEarnings: { version: 2, opening: 0, seen: [], awards: [] } },
+  { streakEarnings: { version: 1, opening: 0, seen: [], covered: 42, awards: [] } },
+  { streakEarnings: { version: 1, opening: 0, seen: [], awards: [{ id: 'bad', amount: NaN }] } },
+  { habits: [{ ...makeState().habits[0], streakMilestones: { badgePeriods: 'invalid' } }] },
+])('does not overwrite unreadable new bonus/badge metadata (%#)', async partial => {
+  const original = makeState(partial)
+  storage.records.set(KEY, original)
+  const app = mount()
+  await waitFor(() => expect(app.result.current.storageError?.kind).toBe('load'))
+  expect(storage.setItem).not.toHaveBeenCalled()
+  expect(storage.records.get(KEY)).toEqual(original)
+})

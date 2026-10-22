@@ -10,6 +10,7 @@ export class StorageConflictError extends Error {
 }
 const STORAGE_KEYS = [STORAGE_KEY, 'namami-state']
 const SCHEMA_VERSION = 6
+const isStringList = value => Array.isArray(value) && value.every(item => typeof item === 'string')
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 export const validateStoredState = (saved) => {
@@ -27,7 +28,7 @@ export const validateStoredState = (saved) => {
   if (saved.streakEarnings !== undefined) {
     const journal = saved.streakEarnings
     if (!isRecord(journal) || journal.version !== 1 || !Number.isFinite(journal.opening) || journal.opening < 0 ||
-        !Array.isArray(journal.seen) || journal.seen.some(id => typeof id !== 'string') ||
+        !isStringList(journal.seen) || (journal.covered !== undefined && !isStringList(journal.covered)) ||
         !Array.isArray(journal.awards) || journal.awards.some(award => !isRecord(award) ||
           typeof award.id !== 'string' || !Number.isFinite(award.amount) || award.amount < 0)) {
       throw new Error('Saved bonus earnings cannot be read safely. The original data has not been replaced.')
@@ -39,6 +40,11 @@ export const validateStoredState = (saved) => {
     }
     for (const key of ['history', 'dailyValueHistory', 'freezeDates', 'streakMilestones']) {
       if (habit[key] != null && !isRecord(habit[key])) throw new Error(`Cannot read saved habit ${key}.`)
+    }
+    for (const field of ['badgePeriods', 'badgeCoverage']) {
+      if (habit.streakMilestones?.[field] !== undefined && !isStringList(habit.streakMilestones[field])) {
+        throw new Error('Saved badge tracking cannot be read safely. The original data has not been replaced.')
+      }
     }
     if (habit.customDays != null && !Array.isArray(habit.customDays)) throw new Error('Cannot read saved habit schedule.')
   }
