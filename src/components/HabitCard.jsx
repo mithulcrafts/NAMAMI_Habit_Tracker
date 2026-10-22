@@ -37,7 +37,7 @@ export const HabitCard = ({
   const friendlyLabel = selectedDateLabel || dateKey
   const relative = relativeLabel || (isToday ? 'Today' : 'Selected date')
   const doneToday = habit.history?.[dateKey]
-  const completion = Math.min(100, Math.round((habit.totalCompleted / habit.targetDays) * 100)) || 0
+  const completion = habit.completionRate ?? 0
   
   // For count/duration, get the selected date's value
   const todayValue = habit.dailyValueHistory?.[dateKey] ?? null

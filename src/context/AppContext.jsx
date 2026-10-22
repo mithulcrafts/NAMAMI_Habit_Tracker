@@ -112,7 +112,8 @@ const AppContext = createContext()
 
 const deriveStats = (habits, settings, today = todayKey(), journal) => {
   const enriched = habits.map((habit) => {
-    const streak = currentStreak(getHabitPeriods(habit, today), today)
+    const periods = getHabitPeriods(habit, today)
+    const streak = currentStreak(periods, today)
 
     // Count total completions (days where target was met)
     const uniqueDateKeys = new Set([
@@ -121,8 +122,10 @@ const deriveStats = (habits, settings, today = todayKey(), journal) => {
     ])
     const totalCompleted = Array.from(uniqueDateKeys).filter((dateKey) => isHabitCompletedOnDate(habit, dateKey)).length
 
+    const recentPeriods = periods.filter(period => period.end < today || period.completed).slice(-30)
+    const consistency = recentPeriods.length ? Math.round(100 * recentPeriods.filter(period => period.completed).length / recentPeriods.length) : 0
     const completionRate =
-      habit.isDailyHabit ? null : Math.min(100, Math.round((totalCompleted / (habit.targetDays || 1)) * 100))
+      habit.isDailyHabit ? consistency : Math.min(100, Math.round((totalCompleted / (habit.targetDays || 1)) * 100))
 
     return { ...habit, streak, totalCompleted, completionRate }
   })

@@ -14,7 +14,7 @@ export const HabitDetail = ({
 }) => {
   if (!habit) return null
   
-  const completionRate = habit.isDailyHabit ? habit.streak * 10 : Math.min(100, Math.round((habit.totalCompleted / habit.targetDays) * 100)) || 0
+  const completionRate = habit.completionRate ?? 0
   const lastCheck = getRecordedDates(habit)
     .filter(d => isHabitCompletedOnDate(habit, d))
     .sort()
@@ -74,6 +74,7 @@ export const HabitDetail = ({
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
           <div
             className="h-full rounded-full bg-gradient-to-r from-brand-400 to-accent"
+            title={habit.isDailyHabit ? "Completion across the last 30 scheduled periods; unfinished current periods are excluded." : "Completion toward your target."}
             style={{ width: `${completionRate}%` }}
           />
         </div>
