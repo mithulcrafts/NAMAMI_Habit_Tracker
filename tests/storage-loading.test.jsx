@@ -128,3 +128,16 @@ describe('D01: successful hydration is required before saving', () => {
     expect(storage.setItem.mock.calls.some(([key]) => key === KEY)).toBe(false)
   })
 })
+
+it('blocks conflicting primary/protected copies on startup and makes both available for recovery', async () => {
+  const primary = makeState({ customQuotes: ['Old app changed this'] })
+  const protectedCopy = makeState({ customQuotes: ['New app saved this'] })
+  storage.records.set(KEY, primary)
+  storage.records.set('namami-state-v1-protected', protectedCopy)
+  const app = mount()
+  await waitFor(() => expect(app.result.current.storageError?.kind).toBe('load'))
+  expect(app.result.current.storageError.recovery).toEqual({ current: primary, protectedCopy })
+  expect(storage.setItem).not.toHaveBeenCalled()
+  expect(storage.records.get(KEY)).toEqual(primary)
+  expect(storage.records.get('namami-state-v1-protected')).toEqual(protectedCopy)
+})

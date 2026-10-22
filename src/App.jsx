@@ -110,7 +110,7 @@ const Shell = () => {
           <p>Saving is paused to protect your existing data. Do not clear the app's site data.</p>
           <p>{storageError.message}</p>
           <button type="button" className="rounded-md border px-4 py-2" onClick={retryStorage}>Retry</button>
-          {!loading && <button type="button" className="ml-2 rounded-md border px-4 py-2" onClick={downloadRecovery}>Download this tab's changes</button>}
+          {(!loading || storageError.recovery) && <button type="button" className="ml-2 rounded-md border px-4 py-2" onClick={downloadRecovery}>{loading ? 'Download recovery copies' : "Download this tab's changes"}</button>}
         </div>
       </div>
     )

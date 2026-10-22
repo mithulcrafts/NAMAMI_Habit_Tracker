@@ -1,5 +1,13 @@
 // These identifiers are part of the installed app's data compatibility contract.
 export const STORAGE_KEY = 'namami-state-v1'
+export const PROTECTED_KEY = 'namami-state-v1-protected'
+export class StorageConflictError extends Error {
+  constructor(current, protectedCopy) {
+    super('Another app version changed the saved data. Both saved copies have been kept. Download the recovery copies before making further changes; do not clear site data.')
+    this.name = 'StorageConflictError'
+    this.recovery = { current, protectedCopy }
+  }
+}
 const STORAGE_KEYS = [STORAGE_KEY, 'namami-state']
 const SCHEMA_VERSION = 6
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -44,6 +52,12 @@ export const validateStoredState = (saved) => {
 export const loadStoredState = async (storage, migrate) => {
   for (const key of STORAGE_KEYS) {
     const saved = await storage.getItem(key)
+    if (key === STORAGE_KEY) {
+      const protectedCopy = await storage.getItem(PROTECTED_KEY)
+      if (protectedCopy != null && JSON.stringify(saved ?? null) !== JSON.stringify(protectedCopy)) {
+        throw new StorageConflictError(saved ?? null, protectedCopy)
+      }
+    }
     // A malformed/falsy value is NOT an empty database.
     if (saved === null || saved === undefined) continue
     validateStoredState(saved)

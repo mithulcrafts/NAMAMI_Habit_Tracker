@@ -99,3 +99,23 @@ it('does not permit unsafe writes when neither coordination mechanism is availab
   await expect(open()).rejects.toThrow('cannot safely coordinate')
   expect(await storage.getItem('namami-state-v1')).toEqual(makeState())
 })
+
+it('keeps the latest successful save in a separate protected snapshot', async () => {
+  const session = await open()
+  const latest = makeState({ customQuotes: ['New saved history'] })
+  await session.save(latest)
+  expect(await storage.getItem('namami-state-v1-protected')).toEqual(latest)
+  await session.release()
+})
+
+it('detects an older app bypassing the lock and preserves both saved versions', async () => {
+  const session = await open()
+  const latest = makeState({ customQuotes: ['Saved by new app'] })
+  await session.save(latest)
+  const older = makeState({ customQuotes: ['Saved by old app'] })
+  await storage.setItem('namami-state-v1', older)
+  await expect(session.save(latest)).rejects.toMatchObject({ name: 'StorageConflictError' })
+  expect(await storage.getItem('namami-state-v1')).toEqual(older)
+  expect(await storage.getItem('namami-state-v1-protected')).toEqual(latest)
+  await session.release()
+})

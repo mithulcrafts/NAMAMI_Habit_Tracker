@@ -1,4 +1,4 @@
-import { STORAGE_KEY } from './stateStorage'
+import { STORAGE_KEY, PROTECTED_KEY, StorageConflictError } from './stateStorage'
 
 const LOCK_NAME = 'namami-edit-session'
 const LOCK_KEY = 'namami-edit-session-lock'
@@ -11,19 +11,43 @@ export class StorageBusyError extends Error {
   }
 }
 
-const nativeSession = (storage, locks) => new Promise((resolve, reject) => {
+const checkedStorage = async storage => {
+  let expected = JSON.stringify((await storage.getItem(STORAGE_KEY)) ?? null)
+  const check = async () => {
+    const current = await storage.getItem(STORAGE_KEY)
+    if (JSON.stringify(current ?? null) !== expected) throw new StorageConflictError(current, await storage.getItem(PROTECTED_KEY))
+  }
+  return {
+    async save(state) {
+      await check()
+      // For a non-IndexedDB driver, retain the new snapshot before its primary
+      // write. A failed second write is recoverable and Retry remains safe.
+      await storage.setItem(PROTECTED_KEY, state)
+      await storage.setItem(STORAGE_KEY, state)
+      expected = JSON.stringify(state)
+    },
+    renew: check,
+    release: async () => {},
+  }
+}
+
+const nativeSession = (storage, locks, openBackend) => new Promise((resolve, reject) => {
   const requested = locks.request(LOCK_NAME, { ifAvailable: true, mode: 'exclusive' }, async lock => {
     if (!lock) { reject(new StorageBusyError()); return }
+    const backend = await openBackend()
     let active = true
     let release
     const held = new Promise(done => { release = done })
     resolve({
       async save(state) {
         if (!active) throw new StorageBusyError()
-        await storage.setItem(STORAGE_KEY, state)
+        await backend.save(state)
       },
-      async renew() { if (!active) throw new StorageBusyError() },
-      async release() { active = false; release(); await requested },
+      async renew() { if (!active) throw new StorageBusyError(); await backend.renew() },
+      async release() {
+        active = false
+        try { await backend.release() } finally { release(); await requested }
+      },
     })
     await held
   })
@@ -44,6 +68,7 @@ const indexedDBSession = async (storage, indexedDB, now) => {
   })
   const owner = crypto.randomUUID()
   let closed = false
+  let expected
   db.onversionchange = () => { closed = true; db.close() }
   const transact = (action, state) => new Promise((resolve, reject) => {
     if (closed) { reject(new StorageBusyError()); return }
@@ -64,9 +89,26 @@ const indexedDBSession = async (storage, indexedDB, now) => {
         return
       }
       store.put({ owner, expiresAt: now() + LEASE_MS }, LOCK_KEY)
-      if (action === 'save') store.put(state, STORAGE_KEY)
+      const currentRequest = store.get(STORAGE_KEY)
+      currentRequest.onsuccess = () => {
+        const current = currentRequest.result ?? null
+        if (action === 'acquire') { expected = JSON.stringify(current); return }
+        if (JSON.stringify(current) !== expected) {
+          failure = new StorageConflictError(current, undefined)
+          transaction.abort()
+          return
+        }
+        if (action === 'save') {
+          // Primary and protected snapshots commit together, or neither does.
+          store.put(state, PROTECTED_KEY)
+          store.put(state, STORAGE_KEY)
+        }
+      }
     }
-    transaction.oncomplete = () => resolve()
+    transaction.oncomplete = () => {
+      if (action === 'save') expected = JSON.stringify(state)
+      resolve()
+    }
     transaction.onabort = () => reject(failure || transaction.error || new Error('Storage transaction was interrupted.'))
     transaction.onerror = () => { /* onabort reports the failure */ }
   })
@@ -86,9 +128,11 @@ export const openEditingSession = async (storage, {
   indexedDB = globalThis.indexedDB,
   now = Date.now,
 } = {}) => {
-  if (locks?.request) return nativeSession(storage, locks)
-  await storage.ready()
-  if (storage.driver() === storage.INDEXEDDB && indexedDB) return indexedDBSession(storage, indexedDB, now)
+  await storage.ready?.()
+  const supportsTransactions = storage.driver?.() === storage.INDEXEDDB && storage.INDEXEDDB && indexedDB
+  if (locks?.request) return nativeSession(storage, locks, () => supportsTransactions
+    ? indexedDBSession(storage, indexedDB, now) : checkedStorage(storage))
+  if (supportsTransactions) return indexedDBSession(storage, indexedDB, now)
   // Do not silently fall back to uncoordinated whole-state writes.
   throw new Error('This browser cannot safely coordinate app storage. Your saved data has not been changed. Retry when browser storage is available.')
 }

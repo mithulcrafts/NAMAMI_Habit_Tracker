@@ -555,6 +555,8 @@ export const AppProvider = ({ children }) => {
         let replacement
         try {
           await saveQueue.current
+          await editingSession.current?.release().catch(() => {})
+          editingSession.current = null
           replacement = await openEditingSession(localforage)
           const current = await localforage.getItem(STORAGE_KEY)
           if (JSON.stringify(current) !== lastSaved.current) {
@@ -575,7 +577,7 @@ export const AppProvider = ({ children }) => {
     }
   }
   const downloadRecovery = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(loading ? storageError?.recovery : state, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -603,7 +605,7 @@ export const AppProvider = ({ children }) => {
       } catch (error) {
         await editingSession.current?.release().catch(() => {})
         editingSession.current = null
-        if (active) setStorageError({ kind: error.name === 'StorageBusyError' ? 'locked' : 'load', message: error.message })
+        if (active) setStorageError({ kind: error.name === 'StorageBusyError' ? 'locked' : 'load', message: error.message, recovery: error.recovery })
       }
     }
     // StrictMode can start and cancel a load immediately. Complete its release
@@ -623,7 +625,7 @@ export const AppProvider = ({ children }) => {
     if (loading) return
     let active = true
     const renew = () => editingSession.current?.renew().catch(error => {
-      if (active) setStorageError({ kind: 'locked', message: error.message })
+      if (active) setStorageError({ kind: error.name === 'StorageConflictError' ? 'conflict' : 'locked', message: error.message })
     })
     const relinquish = () => {
       // Best effort for older browsers; expiry also recovers an abrupt close.
@@ -652,7 +654,7 @@ export const AppProvider = ({ children }) => {
         if (active) setStorageError(null)
       })
       .catch((error) => {
-        if (active) setStorageError({ kind: error.name === 'StorageBusyError' ? 'locked' : 'save', message: error.message })
+        if (active) setStorageError({ kind: error.name === 'StorageConflictError' ? 'conflict' : error.name === 'StorageBusyError' ? 'locked' : 'save', message: error.message })
       })
     return () => { active = false }
   }, [state, loading, saveAttempt])
