@@ -11,6 +11,7 @@ import { pickHabitConfiguration } from '../utils/habitConfiguration'
 import { openEditingSession } from '../utils/editingSession'
 import { isValidRewardCost, isValidScoringPatch } from '../utils/scoringValidation'
 import { isHabitCompletedOnDate } from '../utils/habitProgress'
+import { useToday } from '../hooks/useToday'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -105,13 +106,11 @@ const BADGE_DEFINITIONS = [
 
 const AppContext = createContext()
 
-const deriveStats = (habits, settings) => {
+const deriveStats = (habits, settings, today = todayKey()) => {
   const enriched = habits.map((habit) => {
     // Compute streak: include today if completed/frozen; otherwise show streak up to yesterday
     let streak = 0
-    let cursor = new Date()
-    cursor.setHours(0, 0, 0, 0)
-    const today = todayKey()
+    let cursor = new Date(`${today}T00:00:00`)
     
     while (true) {
       const key = formatDate(cursor)
@@ -199,9 +198,7 @@ const deriveStats = (habits, settings) => {
   // Calculate global streak (consecutive days where ALL habits were completed)
   let globalStreak = 0
   if (settings.gamificationEnabled && enriched.length > 0) {
-    let cursor = new Date()
-    cursor.setHours(0, 0, 0, 0)
-    const today = todayKey()
+    let cursor = new Date(`${today}T00:00:00`)
     while (true) {
       const key = formatDate(cursor)
       const allCompleted = enriched.every((habit) => {
@@ -602,6 +599,7 @@ const createAppActions = ({ state, setState, points }) => {
 }
 
 export const AppProvider = ({ children }) => {
+  const today = useToday()
   localforage.config({ name: 'namami', storeName: 'state' }) // Keep storage location stable across releases
 
   const [state, setState] = useState({
@@ -743,8 +741,8 @@ export const AppProvider = ({ children }) => {
   }, [state.settings?.theme])
 
   const { habits, points: lifetimePoints, bonusDays, globalStreak } = useMemo(
-    () => deriveStats(state.habits, state.settings),
-    [state.habits, state.settings],
+    () => deriveStats(state.habits, state.settings, today),
+    [state.habits, state.settings, today],
   )
 
   const pointsSpent = useMemo(
@@ -788,9 +786,9 @@ export const AppProvider = ({ children }) => {
   }, [habits, points, loading])
 
   const quoteOfDay = useMemo(() => {
-    const seed = Number(todayKey().replaceAll('-', ''))
+    const seed = Number(today.replaceAll('-', ''))
     return pickQuote(state.settings.quoteCategory, state.customQuotes, seed)
-  }, [state.settings.quoteCategory, state.customQuotes])
+  }, [state.settings.quoteCategory, state.customQuotes, today])
 
   const {
     addHabit,

@@ -8,6 +8,7 @@ import { Heatmap } from '../components/Heatmap'
 import { DateNavigator } from '../components/DateNavigator'
 import { HabitDetail } from './HabitDetail'
 import { todayKey, formatDate } from '../utils/date'
+import { useToday } from '../hooks/useToday'
 
 export const Home = ({
   habits,
@@ -32,8 +33,10 @@ export const Home = ({
 }) => {
   const [editing, setEditing] = useState(null)
   const [openDetailHabitId, setOpenDetailHabitId] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const today = todayKey()
+  // null follows Today across midnight; explicit historical selections stay put.
+  const [chosenDate, setSelectedDate] = useState(null)
+  const today = useToday()
+  const selectedDate = chosenDate ?? new Date(`${today}T00:00:00`)
   const selectedDateKey = formatDate(selectedDate)
   const isToday = selectedDateKey === today
   const selectedDateDisplay = selectedDate.toLocaleDateString('en-US', {
@@ -58,7 +61,7 @@ export const Home = ({
 
   const handlePreviousDay = useCallback(() => {
     setSelectedDate(prev => {
-      const newDate = new Date(prev)
+      const newDate = prev ? new Date(prev) : new Date()
       newDate.setDate(newDate.getDate() - 1)
       return newDate
     })
@@ -66,9 +69,9 @@ export const Home = ({
 
   const handleNextDay = useCallback(() => {
     setSelectedDate(prev => {
-      const newDate = new Date(prev)
+      const newDate = prev ? new Date(prev) : new Date()
       newDate.setDate(newDate.getDate() + 1)
-      return newDate
+      return formatDate(newDate) === todayKey() ? null : newDate
     })
   }, [])
 
@@ -77,7 +80,7 @@ export const Home = ({
     const [year, month, day] = value.split('-').map(Number)
     const parsed = new Date(year, month - 1, day)
     if (Number.isNaN(parsed.getTime())) return
-    setSelectedDate(parsed)
+    setSelectedDate(value === todayKey() ? null : parsed)
   }, [])
 
   const sortedHabits = useMemo(
