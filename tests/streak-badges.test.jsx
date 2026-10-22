@@ -51,3 +51,11 @@ it('preserves old badge records and milestone metadata without replaying histori
   expect(app.result.current.earnedBadges.filter(b => b.badgeId === 'streak-3')).toEqual([old])
   expect(app.result.current.habits[0].streakMilestones.unrelated).toEqual({ keep: true })
 })
+
+it('backfilling shifts milestone dates without duplicating badges, but six completed days still earn two', async () => {
+  const app = await mount()
+  for (const day of [21, 22, 23, 20]) act(() => app.result.current.toggleCompletion('real-habit', '2026-10-' + day, true))
+  expect(app.result.current.earnedBadges.filter(b => b.badgeId === 'streak-3')).toHaveLength(1)
+  for (const day of [19, 18]) act(() => app.result.current.toggleCompletion('real-habit', '2026-10-' + day, true))
+  expect(app.result.current.earnedBadges.filter(b => b.badgeId === 'streak-3')).toHaveLength(2)
+})

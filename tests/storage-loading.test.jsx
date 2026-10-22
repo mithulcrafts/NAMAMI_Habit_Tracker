@@ -32,7 +32,7 @@ describe('D01: successful hydration is required before saving', () => {
     await ready(app)
     expect(app.result.current.habits[0].name).toBe(original.habits[0].name)
     expect(app.result.current.storageError).toBeNull()
-    expect(storage.records.get(KEY)).toEqual({ ...original, habits: original.habits.map(h => ({ ...h, streakMilestones: { ...h.streakMilestones, badgePeriods: [] } })), streakEarnings: expect.objectContaining({ version: 1 }) })
+    expect(storage.records.get(KEY)).toEqual({ ...original, habits: original.habits.map(h => ({ ...h, streakMilestones: { ...h.streakMilestones, badgePeriods: [], badgeCoverage: [] } })), streakEarnings: expect.objectContaining({ version: 1 }) })
   })
 
   it('does not write while the initial read is pending', async () => {
@@ -112,7 +112,7 @@ describe('D01: successful hydration is required before saving', () => {
     storage.records.set('namami-state', original)
     const app = mount()
     await ready(app)
-    await waitFor(() => expect(storage.records.get(KEY)).toEqual({ ...original, habits: original.habits.map(h => ({ ...h, streakMilestones: { ...h.streakMilestones, badgePeriods: [] } })), streakEarnings: expect.objectContaining({ version: 1 }) }))
+    await waitFor(() => expect(storage.records.get(KEY)).toEqual({ ...original, habits: original.habits.map(h => ({ ...h, streakMilestones: { ...h.streakMilestones, badgePeriods: [], badgeCoverage: [] } })), streakEarnings: expect.objectContaining({ version: 1 }) }))
     expect(storage.records.get('namami-state')).toEqual(original)
     expect([...storage.records.keys()].some(key => key.startsWith('namami-recovery:'))).toBe(true)
   })

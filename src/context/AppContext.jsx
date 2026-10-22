@@ -15,7 +15,7 @@ import { useToday } from '../hooks/useToday'
 import { currentStreak, getHabitPeriods, getGlobalPeriods } from '../utils/schedule'
 import { initializeStreakEarnings, reconcileStreakEarnings, earnedStreakPoints } from '../utils/streakEarnings'
 import { legacyStats } from '../utils/legacyScoring'
-import { getBadgeEvents, initializeBadgeTracking } from '../utils/streakBadges'
+import { getBadgeEvents, getFreshBadgeEvents, initializeBadgeTracking } from '../utils/streakBadges'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -180,9 +180,7 @@ const checkBadgesEarned = (habits, points) => {
   const badges = []
   
   habits.forEach(habit => {
-    const seen = new Set(habit.streakMilestones?.badgePeriods || [])
-    for (const event of getBadgeEvents(habit)) {
-      if (seen.has(event.id)) continue
+    for (const event of getFreshBadgeEvents(habit).fresh) {
       badges.push({ id: 'streak-badge:' + event.id, badgeId: 'streak-' + event.threshold,
         habitId: habit.id, habitName: habit.name, earnedAt: event.date,
         milestone: event.milestone, frequency: habit.frequency })
@@ -706,7 +704,7 @@ export const AppProvider = ({ children }) => {
         const additions = getBadgeEvents(habit, today).map(event => event.id).filter(id => !seen.has(id))
         if (updated && (updated.streak !== habit.previousStreak || additions.length || !habit.streakMilestones?.badgePeriods)) {
           return { ...habit, previousStreak: updated.streak,
-            streakMilestones: { ...habit.streakMilestones, badgePeriods: [...seen, ...additions] } }
+            streakMilestones: { ...habit.streakMilestones, badgePeriods: [...seen, ...additions], badgeCoverage: getFreshBadgeEvents(habit, today).covered } }
         }
         return habit
       })

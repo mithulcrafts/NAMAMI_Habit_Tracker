@@ -99,3 +99,12 @@ it('never replaces primary data if the pre-upgrade recovery write fails', async 
   expect(app.result.current.loading).toBe(true)
   expect(storage.records.get(KEY)).toEqual(original)
 })
+
+it('backfilling the start of the same run cannot pay its 3-step bonus a second time', async () => {
+  const app = await mount()
+  for (const day of [21, 22, 23]) log(app, '2026-10-' + day)
+  log(app, '2026-10-20')
+  expect(app.result.current.lifetimePoints).toBe(127) // Only the added day's 10+20.
+  await act(async () => {})
+  expect(journal().awards).toHaveLength(2)
+})
