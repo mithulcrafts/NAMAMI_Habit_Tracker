@@ -32,6 +32,7 @@ const Shell = () => {
     loading,
     storageError,
     retryStorage,
+    downloadRecovery,
     habits,
     points,
     lifetimePoints,
@@ -101,14 +102,15 @@ const Shell = () => {
     }
   }
 
-  if (storageError?.kind === 'load') {
+  if (['load', 'locked', 'conflict'].includes(storageError?.kind)) {
     return (
       <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <div role="alert" className="mx-auto max-w-xl space-y-3">
-          <h1 className="text-xl font-semibold">Your habits could not be loaded</h1>
-          <p>Saving is paused to protect your existing data. Please retry. Do not clear the app's site data.</p>
+          <h1 className="text-xl font-semibold">{storageError.kind === 'load' ? 'Your habits could not be loaded' : 'This copy is not editable'}</h1>
+          <p>Saving is paused to protect your existing data. Do not clear the app's site data.</p>
           <p>{storageError.message}</p>
           <button type="button" className="rounded-md border px-4 py-2" onClick={retryStorage}>Retry</button>
+          {!loading && <button type="button" className="ml-2 rounded-md border px-4 py-2" onClick={downloadRecovery}>Download this tab's changes</button>}
         </div>
       </div>
     )

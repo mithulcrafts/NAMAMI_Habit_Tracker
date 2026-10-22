@@ -7,6 +7,9 @@ import App from '../src/App'
 import { todayKey } from '../src/utils/date'
 import { deferred, makeState, memoryStorage } from './fixtures'
 
+vi.mock('../src/utils/editingSession', () => ({ openEditingSession: async storage => ({
+  save: state => storage.setItem('namami-state-v1', state), renew: async () => {}, release: async () => {},
+}) }))
 vi.mock('localforage', () => ({ default: { config: vi.fn(), getItem: vi.fn(), setItem: vi.fn() } }))
 const KEY = 'namami-state-v1'
 let storage
@@ -28,7 +31,7 @@ it('D04: reports a failed save and retries the unsaved state without reloading i
   expect(app.result.current.habits[0].history['2020-01-04']).toBe(true)
   expect(storage.records.get(KEY)).toEqual(persisted)
   storage.setItem.mockImplementation(save)
-  act(() => app.result.current.retryStorage())
+  await act(async () => app.result.current.retryStorage())
   await waitFor(() => expect(storage.records.get(KEY).habits[0].history['2020-01-04']).toBe(true))
   expect(app.result.current.storageError).toBeNull()
 })
@@ -66,7 +69,7 @@ it('keeps later edits when a failed save is retried', async () => {
   act(() => app.result.current.updateSettings({ theme: 'dark' }))
   await act(async () => {})
   storage.setItem.mockImplementation(save)
-  act(() => app.result.current.retryStorage())
+  await act(async () => app.result.current.retryStorage())
   await waitFor(() => expect(storage.records.get(KEY).settings.theme).toBe('dark'))
   expect(storage.records.get(KEY).habits[0].name).toBe('Unsaved name')
 })

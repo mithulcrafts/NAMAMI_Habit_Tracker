@@ -7,6 +7,9 @@ import App from '../src/App'
 import { todayKey } from '../src/utils/date'
 import { makeHabit, makeState, memoryStorage } from './fixtures'
 
+vi.mock('../src/utils/editingSession', () => ({ openEditingSession: async storage => ({
+  save: state => storage.setItem('namami-state-v1', state), renew: async () => {}, release: async () => {},
+}) }))
 vi.mock('localforage', () => ({ default: { config: vi.fn(), getItem: vi.fn(), setItem: vi.fn() } }))
 let storage
 const KEY = 'namami-state-v1'

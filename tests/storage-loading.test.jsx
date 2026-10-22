@@ -5,6 +5,9 @@ import localforage from 'localforage'
 import { AppProvider, useApp } from '../src/context/AppContext'
 import { deferred, makeState, memoryStorage } from './fixtures'
 
+vi.mock('../src/utils/editingSession', () => ({ openEditingSession: async storage => ({
+  save: state => storage.setItem('namami-state-v1', state), renew: async () => {}, release: async () => {},
+}) }))
 vi.mock('localforage', () => ({ default: { config: vi.fn(), getItem: vi.fn(), setItem: vi.fn() } }))
 const KEY = 'namami-state-v1'
 const wrapper = ({ children }) => <StrictMode><AppProvider>{children}</AppProvider></StrictMode>
@@ -25,7 +28,7 @@ describe('D01: successful hydration is required before saving', () => {
     expect(storage.setItem).not.toHaveBeenCalled()
     expect(storage.records.get(KEY)).toEqual(original)
     storage.getItem.mockImplementation(async key => structuredClone(storage.records.get(key) ?? null))
-    act(() => app.result.current.retryStorage())
+    await act(async () => app.result.current.retryStorage())
     await ready(app)
     expect(app.result.current.habits[0].name).toBe(original.habits[0].name)
     expect(app.result.current.storageError).toBeNull()

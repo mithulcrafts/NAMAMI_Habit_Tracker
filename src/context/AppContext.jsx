@@ -8,6 +8,7 @@ import {
 
 import { loadStoredState, STORAGE_KEY } from '../utils/stateStorage'
 import { pickHabitConfiguration } from '../utils/habitConfiguration'
+import { openEditingSession } from '../utils/editingSession'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -617,33 +618,103 @@ export const AppProvider = ({ children }) => {
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [saveAttempt, setSaveAttempt] = useState(0)
   const saveQueue = useRef(Promise.resolve())
-  const retryStorage = () => {
+  const loadQueue = useRef(Promise.resolve())
+  const editingSession = useRef(null)
+  const lastSaved = useRef(null)
+  const retryStorage = async () => {
     if (loading) {
       setStorageError(null)
       setLoadAttempt(attempt => attempt + 1)
     } else {
+      // A suspended fallback owner may have lost its lease. Never save its old
+      // state over changes made by the replacement owner.
+      if (storageError?.kind === 'locked' || storageError?.kind === 'conflict') {
+        let replacement
+        try {
+          await saveQueue.current
+          replacement = await openEditingSession(localforage)
+          const current = await localforage.getItem(STORAGE_KEY)
+          if (JSON.stringify(current) !== lastSaved.current) {
+            await replacement.release()
+            setStorageError({ kind: 'conflict', message: 'Another copy saved changes while this tab was inactive. Download this tab’s changes before closing it; the newer saved data has been left untouched.' })
+            return
+          }
+          await editingSession.current?.release()
+          editingSession.current = replacement
+        } catch (error) {
+          await replacement?.release()
+          setStorageError({ kind: 'locked', message: error.message })
+          return
+        }
+      }
       // Retry the in-memory changes, never reload over an unsaved check-in.
       setSaveAttempt(attempt => attempt + 1)
     }
+  }
+  const downloadRecovery = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'namami-unsaved-recovery.json'
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   useEffect(() => {
     let active = true
     const load = async () => {
       try {
+        if (!active) return
+        const session = await openEditingSession(localforage)
+        if (!active) { await session.release(); return }
+        editingSession.current = session
         const saved = await loadStoredState(localforage, migrateData)
+        lastSaved.current = JSON.stringify(await localforage.getItem(STORAGE_KEY))
         if (!active) return
         if (saved !== null) setState(saved)
         setStorageError(null)
         // Only a successful read may enable saving or show the habit controls.
         setLoading(false)
       } catch (error) {
-        if (active) setStorageError({ kind: 'load', message: error.message })
+        await editingSession.current?.release().catch(() => {})
+        editingSession.current = null
+        if (active) setStorageError({ kind: error.name === 'StorageBusyError' ? 'locked' : 'load', message: error.message })
       }
     }
-    load()
-    return () => { active = false }
+    // StrictMode can start and cancel a load immediately. Complete its release
+    // before acquiring the next session, so it cannot lock itself out.
+    loadQueue.current = loadQueue.current.then(load)
+    return () => {
+      active = false
+      loadQueue.current = loadQueue.current.then(async () => {
+        await saveQueue.current
+        await editingSession.current?.release().catch(() => {})
+        editingSession.current = null
+      })
+    }
   }, [loadAttempt])
+
+  useEffect(() => {
+    if (loading) return
+    let active = true
+    const renew = () => editingSession.current?.renew().catch(error => {
+      if (active) setStorageError({ kind: 'locked', message: error.message })
+    })
+    const relinquish = () => {
+      // Best effort for older browsers; expiry also recovers an abrupt close.
+      saveQueue.current.then(() => editingSession.current?.release()).catch(() => {})
+    }
+    const timer = setInterval(renew, 5000)
+    window.addEventListener('focus', renew)
+    window.addEventListener('pagehide', relinquish)
+    return () => {
+      active = false
+      clearInterval(timer)
+      window.removeEventListener('focus', renew)
+      window.removeEventListener('pagehide', relinquish)
+    }
+  }, [loading])
 
   useEffect(() => {
     if (loading) return
@@ -651,12 +722,13 @@ export const AppProvider = ({ children }) => {
     // Preserve write order even when IndexedDB is slow. Every queued snapshot
     // includes earlier edits; an old save must never finish after a newer save.
     saveQueue.current = saveQueue.current
-      .then(() => localforage.setItem(STORAGE_KEY, state))
+      .then(() => editingSession.current.save(state))
       .then(() => {
+        lastSaved.current = JSON.stringify(state)
         if (active) setStorageError(null)
       })
       .catch((error) => {
-        if (active) setStorageError({ kind: 'save', message: error.message })
+        if (active) setStorageError({ kind: error.name === 'StorageBusyError' ? 'locked' : 'save', message: error.message })
       })
     return () => { active = false }
   }, [state, loading, saveAttempt])
@@ -740,6 +812,7 @@ export const AppProvider = ({ children }) => {
     loading,
     storageError,
     retryStorage,
+    downloadRecovery,
     habits,
     points,
     lifetimePoints,
