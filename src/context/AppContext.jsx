@@ -708,7 +708,7 @@ export const AppProvider = ({ children }) => {
     // Keep existing badge/streak persistence; the updater returns prev when nothing changed.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => {
-      const newBadges = checkBadgesEarned(habits, points)
+      const newBadges = checkBadgesEarned(habits, lifetimePoints)
       const existingBadgeIds = new Set((prev.earnedBadges || []).map((b) => b.id))
       const badgesToAdd = newBadges.filter((b) => !existingBadgeIds.has(b.id))
 
@@ -732,7 +732,7 @@ export const AppProvider = ({ children }) => {
         habits: hasStreakUpdates ? updatedHabits : prev.habits,
       }
     })
-  }, [habits, points, loading, today])
+  }, [habits, lifetimePoints, loading, today])
 
   const quoteOfDay = useMemo(() => {
     const seed = Number(today.replaceAll('-', ''))
