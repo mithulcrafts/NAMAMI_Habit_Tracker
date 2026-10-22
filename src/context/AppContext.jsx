@@ -12,6 +12,7 @@ import { openEditingSession } from '../utils/editingSession'
 import { isValidRewardCost, isValidScoringPatch } from '../utils/scoringValidation'
 import { isHabitCompletedOnDate } from '../utils/habitProgress'
 import { useToday } from '../hooks/useToday'
+import { currentStreak, getHabitPeriods, getGlobalPeriods } from '../utils/schedule'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -108,44 +109,7 @@ const AppContext = createContext()
 
 const deriveStats = (habits, settings, today = todayKey()) => {
   const enriched = habits.map((habit) => {
-    // Compute streak: include today if completed/frozen; otherwise show streak up to yesterday
-    let streak = 0
-    let cursor = new Date(`${today}T00:00:00`)
-    
-    while (true) {
-      const key = formatDate(cursor)
-      const isFrozen = habit.freezeDates?.[key] === true
-      if (isFrozen) {
-        streak += 1
-        cursor.setDate(cursor.getDate() - 1)
-        continue
-      }
-
-      const dayEntry = habit.history?.[key]
-
-      // If day exists and is explicitly false, break the streak
-      if (dayEntry === false) {
-        if (key === today) {
-          cursor.setDate(cursor.getDate() - 1)
-          continue
-        }
-        break
-      }
-
-      const isCompleted = isHabitCompletedOnDate(habit, key)
-      if (isCompleted) {
-        streak += 1
-        cursor.setDate(cursor.getDate() - 1)
-      } else {
-        // If today is not yet completed, fall back to streak up to yesterday
-        if (key === today) {
-          cursor.setDate(cursor.getDate() - 1)
-          continue
-        }
-        // Day not completed - stop counting
-        break
-      }
-    }
+    const streak = currentStreak(getHabitPeriods(habit, today), today)
 
     // Count total completions (days where target was met)
     const uniqueDateKeys = new Set([
@@ -160,21 +124,8 @@ const deriveStats = (habits, settings, today = todayKey()) => {
     return { ...habit, streak, totalCompleted, completionRate }
   })
 
-  // Collect all completed dates for bonuses (only when target is met)
-  const completedDates = {}
-  enriched.forEach((habit) => {
-    const keys = new Set([
-      ...Object.keys(habit.history || {}),
-      ...Object.keys(habit.dailyValueHistory || {}),
-    ])
-    keys.forEach((dateKey) => {
-      if (isHabitCompletedOnDate(habit, dateKey)) {
-        completedDates[dateKey] = (completedDates[dateKey] || 0) + 1
-      }
-    })
-  })
-
-  const bonusDays = Object.entries(completedDates).filter(([, count]) => count >= enriched.length)
+  const globalPeriods = getGlobalPeriods(enriched, today)
+  const bonusDays = globalPeriods.filter(period => period.completed).map(period => period.key)
 
   const basePoints = settings.gamificationEnabled
     ? enriched.reduce((sum, habit) => {
@@ -195,26 +146,7 @@ const deriveStats = (habits, settings, today = todayKey()) => {
       }, 0)
     : 0
 
-  // Calculate global streak (consecutive days where ALL habits were completed)
-  let globalStreak = 0
-  if (settings.gamificationEnabled && enriched.length > 0) {
-    let cursor = new Date(`${today}T00:00:00`)
-    while (true) {
-      const key = formatDate(cursor)
-      const allCompleted = enriched.every((habit) => {
-        const isFrozen = habit.freezeDates?.[key] === true
-        return isFrozen || isHabitCompletedOnDate(habit, key)
-      })
-      if (allCompleted) {
-        globalStreak += 1
-        cursor.setDate(cursor.getDate() - 1)
-      } else if (key === today) {
-        cursor.setDate(cursor.getDate() - 1)
-      } else {
-        break
-      }
-    }
-  }
+  const globalStreak = settings.gamificationEnabled ? currentStreak(globalPeriods, today) : 0
 
   const globalStreakBonus = settings.gamificationEnabled
     ? (() => {
@@ -231,7 +163,7 @@ const deriveStats = (habits, settings, today = todayKey()) => {
   return {
     habits: enriched,
     points: totalPoints,
-    bonusDays: bonusDays.map(([dateKey]) => dateKey),
+    bonusDays,
     globalStreak,
   }
 }

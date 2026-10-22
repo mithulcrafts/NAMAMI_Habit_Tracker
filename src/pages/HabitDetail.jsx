@@ -51,7 +51,7 @@ export const HabitDetail = ({
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="glass rounded-xl p-3">
           <p className="text-xs uppercase tracking-widest text-brand-100">STREAK</p>
-          <p className="text-2xl font-bold text-white">{habit.streak} days</p>
+          <p className="text-2xl font-bold text-white">{habit.streak} {habit.frequency === 'weekly' ? 'weeks' : 'days'}</p>
         </div>
         <div className="glass rounded-xl p-3">
           <p className="text-xs uppercase tracking-widest text-brand-100">TOTAL COMPLETED</p>

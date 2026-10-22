@@ -91,7 +91,7 @@ export const HabitCard = ({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
-        <span className="rounded-full bg-brand-500/15 px-3 py-1 text-brand-100">Streak: {habit.streak}d</span>
+        <span className="rounded-full bg-brand-500/15 px-3 py-1 text-brand-100">Streak: {habit.streak}{habit.frequency === 'weekly' ? 'w' : 'd'}</span>
         <span className="rounded-full bg-slate-800 px-3 py-1">Done: {habit.totalCompleted}</span>
         {!habit.isDailyHabit && (
           <span className="rounded-full bg-slate-800 px-3 py-1">Target: {habit.targetDays} days</span>
