@@ -283,7 +283,11 @@ const migrateData = (saved) => {
   return prepareEarnings(saved)
 }
 
-const createAppActions = ({ state, setState, points }) => {
+const availablePoints = state => Math.max(0,
+  deriveStats(state.habits, state.settings, todayKey(), state.streakEarnings).points -
+  calculatePointsSpent(state.claimedRewards, state.rewards) - (state.manualAdjustment || 0))
+
+const createAppActions = ({ setState }) => {
   const addHabit = (data) => {
     if (!isValidScoringPatch(data)) return
     const newHabit = {
@@ -374,36 +378,21 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const claimReward = (rewardId) => {
-    const reward = state.rewards.find((r) => r.id === rewardId && !r.deleted)
-    if (!reward) return
-    const cost = reward.requiredPoints
-    if (!isValidRewardCost(cost)) return
-    if (points < cost) return
-
-    setState((prev) => ({
-      ...prev,
-      claimedRewards: [
-        ...prev.claimedRewards,
-        { rewardId, claimedAt: todayKey(), cost, name: reward.name },
-      ],
-    }))
+    setState(prev => {
+      const reward = prev.rewards.find(r => r.id === rewardId && !r.deleted)
+      if (!reward || !isValidRewardCost(reward.requiredPoints) || availablePoints(prev) < reward.requiredPoints) return prev
+      return { ...prev, claimedRewards: [...prev.claimedRewards,
+        { rewardId, claimedAt: todayKey(), cost: reward.requiredPoints, name: reward.name }] }
+    })
   }
 
   const buyStreakFreeze = () => {
-    if (points < STREAK_FREEZE_COST) return
-    setState((prev) => ({
-      ...prev,
-      streakFreezes: (prev.streakFreezes || 0) + 1,
-      claimedRewards: [
-        ...prev.claimedRewards,
-        {
-          rewardId: 'streak-freeze',
-          claimedAt: todayKey(),
-          cost: STREAK_FREEZE_COST,
-          name: 'Streak Freeze',
-        },
-      ],
-    }))
+    setState(prev => {
+      if (availablePoints(prev) < STREAK_FREEZE_COST) return prev
+      return { ...prev, streakFreezes: (prev.streakFreezes || 0) + 1,
+        claimedRewards: [...prev.claimedRewards, { rewardId: 'streak-freeze',
+          claimedAt: todayKey(), cost: STREAK_FREEZE_COST, name: 'Streak Freeze' }] }
+    })
   }
 
   const useStreakFreeze = (habitId, dateKey = todayKey()) => {
@@ -744,7 +733,7 @@ export const AppProvider = ({ children }) => {
     updateSettings,
     updateHabitGamification,
     adjustMithura,
-  } = createAppActions({ state, points, setState: updater => setState(previous => {
+  } = createAppActions({ setState: updater => setState(previous => {
     const next = typeof updater === 'function' ? updater(previous) : updater
     return reconcileStreakEarnings(previous, next)
   }) })
