@@ -48,6 +48,10 @@ export const HabitCard = ({
   const handleSubmitValue = () => {
     if (valueInput === '' || isNaN(valueInput)) return
     const value = Number(valueInput)
+    if (!Number.isFinite(value) || value < 0) {
+      alert('Please enter a number of 0 or more.')
+      return
+    }
     onToggle(habit.id, dateKey, value >= (habit.goalTarget || 1), value)
     setValueInput('')
   }

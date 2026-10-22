@@ -399,6 +399,8 @@ const createAppActions = ({ state, setState, points }) => {
       let refund = 0
       const habits = prev.habits.map((habit) => {
         if (habit.id !== id) return habit
+        // Validate before changing either progress or freeze inventory.
+        if (habit.goalType !== 'binary' && (!Number.isFinite(value) || value < 0)) return habit
 
         const freezeDates = { ...(habit.freezeDates || {}) }
         const hadFreeze = freezeDates[dateKey] === true
