@@ -7,6 +7,7 @@ import {
 } from '../utils/date'
 
 import { loadStoredState, STORAGE_KEY } from '../utils/stateStorage'
+import { pickHabitConfiguration } from '../utils/habitConfiguration'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -378,9 +379,10 @@ const createAppActions = ({ state, setState, points }) => {
   }
 
   const updateHabit = (id, data) => {
+    const configuration = pickHabitConfiguration(data)
     setState((prev) => ({
       ...prev,
-      habits: prev.habits.map((h) => (h.id === id ? { ...h, ...data } : h)),
+      habits: prev.habits.map((h) => (h.id === id ? { ...h, ...configuration } : h)),
     }))
   }
 

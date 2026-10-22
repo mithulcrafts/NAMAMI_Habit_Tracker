@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { pickHabitConfiguration } from '../utils/habitConfiguration'
 
 const defaultData = {
   name: '',
@@ -38,7 +39,7 @@ const getInitialFormData = (initial) => {
 
   return {
     ...defaultData,
-    ...initial,
+    ...pickHabitConfiguration(initial),
     customDays: [...(initial.customDays ?? defaultData.customDays)],
     customStreakBonuses: {
       ...defaultData.customStreakBonuses,
@@ -64,7 +65,7 @@ const getThemeClasses = () => {
 
 export const HabitForm = ({ onSave, onCancel, initial }) => {
 
-  const [form, setForm] = useState(initial || defaultData)
+  const [form, setForm] = useState(() => getInitialFormData(initial))
   const theme = getThemeClasses()
 
   const toggleDay = (index) => {
