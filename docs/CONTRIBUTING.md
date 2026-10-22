@@ -26,6 +26,7 @@ Contributions are welcome. Keep changes focused, testable, and easy to review.
 ## Local Checks
 
 ```bash
+npm test
 npm run lint
 npm run build
 npm run preview
@@ -35,7 +36,7 @@ For UI changes, include brief manual validation notes (what page you tested and 
 
 Recommended order before opening a PR:
 
-1. `npm run lint`
+1. `npm test`, then `npm run lint`
 2. `npm run build`
 3. `npm run preview` (quick sanity pass)
 

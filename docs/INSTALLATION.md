@@ -4,7 +4,7 @@ This guide covers local setup, production build, and common troubleshooting.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ or 22.12+ (Node 24 is used in regression checks)
 - npm 9+
 
 Verify versions:
@@ -31,7 +31,7 @@ Default URL: `http://localhost:5173`
 - Open the URL and verify the Home screen loads
 - Keep the dev server running while making changes
 
-If dependencies fail to install, delete `node_modules` and `package-lock.json`, then run `npm install` again.
+For a reproducible install, keep `package-lock.json` and run `npm ci`. Check the Node version and the reported installation error before changing dependencies.
 
 If the app does not start correctly:
 
@@ -64,18 +64,18 @@ This is a static Vite app. Deploy the `dist/` folder to any static host.
 
 ### GitHub Pages
 
-Set `base` in `vite.config.js` to your repo path if hosting under a subpath, then publish `dist/`.
+The current manifest and service worker use root-relative paths. A subpath deployment needs those paths and the build asset URLs reviewed together; changing only `base` is insufficient. Keep an existing installation on its current origin to retain access to local data.
 
 ## PWA Notes
 
 - Install prompt availability depends on browser support and engagement rules
-- After deployment updates, service-worker cache may require a hard refresh
+- Updates activate after open copies close. Reopen online once, then verify offline use. Some browsers need up to 30 seconds before Retry can acquire the previous editing lock.
 
 ## Quick Troubleshooting
 
 - Port conflict: `npm run dev -- --port 3000`
 - Blank deploy: verify `base` config and hard refresh
-- Offline cache issue: clear site data and reload
-- Missing local data: check IndexedDB in browser devtools
+- Offline cache issue: reconnect and close/reopen the app. **Do not clear site data or IndexedDB**: that deletes your habits. Preserve recovery downloads before troubleshooting.
+- Missing local data: verify the same origin, browser/profile, and installed app. Keep all stored copies; inspect IndexedDB without deleting or resetting it. See [data safety](DATA_SAFETY.md).
 
 For contribution workflow and PR expectations, see [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -34,6 +34,7 @@ App URL: `http://localhost:5173`
 - `npm run build` — create production build in `dist/`
 - `npm run preview` — preview production build
 - `npm run lint` — run ESLint
+- `npm test` — run data-preservation and behavior regression tests
 
 ## What It Includes
 
@@ -56,6 +57,7 @@ App URL: `http://localhost:5173`
 - [docs/OVERVIEW.md](docs/OVERVIEW.md)
 - [docs/FEATURES.md](docs/FEATURES.md)
 - [docs/TECHNICAL.md](docs/TECHNICAL.md)
+- [docs/DATA_SAFETY.md](docs/DATA_SAFETY.md)
 - [docs/UI_DESIGN.md](docs/UI_DESIGN.md)
 - [docs/INSTALLATION.md](docs/INSTALLATION.md)
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
