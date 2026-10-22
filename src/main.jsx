@@ -17,29 +17,13 @@ const enableServiceWorker = () => {
     // In prod: register new SW
     else {
       window.addEventListener('load', () => {
-        let refreshing = false
-
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (refreshing) return
-          refreshing = true
-          window.location.reload()
-        })
-
         navigator.serviceWorker
           .register('/service-worker.js', { updateViaCache: 'none' })
           .then((registration) => {
             registration.update().catch(() => {})
 
-            registration.addEventListener('updatefound', () => {
-              const newWorker = registration.installing
-              if (!newWorker) return
-
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  newWorker.postMessage({ type: 'SKIP_WAITING' })
-                }
-              })
-            })
+            // Updates activate after open copies close; never force a reload
+            // over a pending storage write or an unfinished form.
           })
           .catch((err) => console.error('SW registration failed', err))
       })
