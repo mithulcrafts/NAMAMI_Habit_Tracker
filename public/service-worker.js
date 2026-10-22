@@ -3,7 +3,7 @@ const CACHE_VERSION = 'v8';
 const RUNTIME_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const NAV_CACHE = `${CACHE_PREFIX}-nav-${CACHE_VERSION}`;
 const OFFLINE_FALLBACK = '/';
-const PRECACHE = ['/', '/manifest.webmanifest', '/icons/namami-icon.svg'];
+const PRECACHE = ['/', '/manifest.webmanifest', '/icons/namami-icon.svg', '/icons/namami-splash-logo.jpeg', /* BUILD_ASSETS */];
 
 self.addEventListener('install', event => {
   // Use the normal waiting lifecycle. An update must not reload an open app
