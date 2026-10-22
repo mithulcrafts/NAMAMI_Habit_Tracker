@@ -30,6 +30,8 @@ const shellReducer = (state, action) => {
 const Shell = () => {
   const {
     loading,
+    storageError,
+    retryStorage,
     habits,
     points,
     lifetimePoints,
@@ -66,11 +68,11 @@ const Shell = () => {
 
   // Remove splash screen when data is loaded
   useEffect(() => {
-    if (!loading && !hydrated) {
+    if ((!loading || storageError) && !hydrated) {
       dispatch({ type: 'setHydrated' })
       window._NAMAMI_HYDRATED?.()
     }
-  }, [loading, hydrated])
+  }, [loading, storageError, hydrated])
 
   useEffect(() => {
     const onReady = () => dispatch({ type: 'setInstallAvailable', payload: true })
@@ -99,7 +101,20 @@ const Shell = () => {
     }
   }
 
-  if (!hydrated) {
+  if (storageError?.kind === 'load') {
+    return (
+      <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+        <div role="alert" className="mx-auto max-w-xl space-y-3">
+          <h1 className="text-xl font-semibold">Your habits could not be loaded</h1>
+          <p>Saving is paused to protect your existing data. Please retry. Do not clear the app's site data.</p>
+          <p>{storageError.message}</p>
+          <button type="button" className="rounded-md border px-4 py-2" onClick={retryStorage}>Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hydrated || loading) {
     return null
   }
 

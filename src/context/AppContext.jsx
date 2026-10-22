@@ -6,8 +6,7 @@ import {
   todayKey,
 } from '../utils/date'
 
-const STORAGE_KEY = 'namami-state-v1'
-const STORAGE_FALLBACK_KEYS = ['namami-state-v1', 'namami-state']
+import { loadStoredState, STORAGE_KEY } from '../utils/stateStorage'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -612,28 +611,30 @@ export const AppProvider = ({ children }) => {
     schemaVersion: SCHEMA_VERSION,
   })
   const [loading, setLoading] = useState(true)
+  const [storageError, setStorageError] = useState(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const retryStorage = () => {
+    setStorageError(null)
+    setLoadAttempt(attempt => attempt + 1)
+  }
 
   useEffect(() => {
+    let active = true
     const load = async () => {
       try {
-        for (const key of STORAGE_FALLBACK_KEYS) {
-          const saved = await localforage.getItem(key)
-          if (saved) {
-            const migrated = migrateData(saved)
-            setState(migrated || saved)
-            if (key !== STORAGE_KEY) {
-              await localforage.setItem(STORAGE_KEY, migrated || saved)
-            }
-            break
-          }
-        }
-      } finally {
+        const saved = await loadStoredState(localforage, migrateData)
+        if (!active) return
+        if (saved !== null) setState(saved)
+        setStorageError(null)
+        // Only a successful read may enable saving or show the habit controls.
         setLoading(false)
+      } catch (error) {
+        if (active) setStorageError({ kind: 'load', message: error.message })
       }
     }
-
     load()
-  }, [])
+    return () => { active = false }
+  }, [loadAttempt])
 
   useEffect(() => {
     if (!loading) {
@@ -664,6 +665,8 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (loading || !habits.length) return
 
+    // Keep existing badge/streak persistence; the updater returns prev when nothing changed.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => {
       const newBadges = checkBadgesEarned(habits, points)
       const existingBadgeIds = new Set((prev.earnedBadges || []).map((b) => b.id))
@@ -716,6 +719,8 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     loading,
+    storageError,
+    retryStorage,
     habits,
     points,
     lifetimePoints,
