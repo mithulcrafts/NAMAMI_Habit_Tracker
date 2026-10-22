@@ -62,7 +62,7 @@ export const EarnedBadges = ({ earnedBadges, badgeDefinitions, habits }) => {
                           const habit = habits?.find((h) => h.id === habitId)
                           return (
                             <div key={habitId} className={`text-xs ${theme.textSecondary} ${theme.bgHabitInfo} rounded px-2 py-1`}>
-                              <span className="font-bold">{habit?.name || 'Unknown habit'}:</span> {habitCount}x
+                              <span className="font-bold">{habit?.name || earnedBadges.find(entry => entry.habitId === habitId && entry.habitName)?.habitName || 'Unknown habit'}:</span> {habitCount}x
                             </div>
                           )
                         })}

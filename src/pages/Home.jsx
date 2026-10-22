@@ -9,6 +9,7 @@ import { DateNavigator } from '../components/DateNavigator'
 import { HabitDetail } from './HabitDetail'
 import { todayKey, formatDate } from '../utils/date'
 import { useToday } from '../hooks/useToday'
+import { isHabitCompletedOnDate } from '../utils/habitProgress'
 
 export const Home = ({
   habits,
@@ -86,11 +87,11 @@ export const Home = ({
   const sortedHabits = useMemo(
     () =>
       [...habits].sort((a, b) => {
-        const doneA = a.history?.[today] ? 1 : 0
-        const doneB = b.history?.[today] ? 1 : 0
+        const doneA = isHabitCompletedOnDate(a, selectedDateKey) ? 1 : 0
+        const doneB = isHabitCompletedOnDate(b, selectedDateKey) ? 1 : 0
         return doneA === doneB ? b.streak - a.streak : doneA - doneB
       }),
-    [habits, today],
+    [habits, selectedDateKey],
   )
 
   return (

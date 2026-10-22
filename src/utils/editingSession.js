@@ -6,7 +6,7 @@ const LEASE_MS = 30000
 
 export class StorageBusyError extends Error {
   constructor() {
-    super('NAMAMI is already open for editing in another tab or window. Close that copy, then retry. After a browser closes unexpectedly, recovery can take up to 30 seconds.')
+    super('NAMAMI is already open for editing in another tab or window. Close that copy, then retry. Some browsers take up to 30 seconds to release a previous copy after closing or reloading it.')
     this.name = 'StorageBusyError'
   }
 }
