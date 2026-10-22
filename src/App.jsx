@@ -1,5 +1,5 @@
 import './App.css'
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 import { AppProvider, useApp } from './context/AppContext'
 import { Home } from './pages/Home'
 import { RewardsPage } from './pages/RewardsPage'
@@ -67,6 +67,18 @@ const Shell = () => {
   const [shellState, dispatch] = useReducer(shellReducer, initialShellState)
   const { currentPage, hydrated, installAvailable, installing } = shellState
 
+  const shortcutHandled = useRef(false)
+  useEffect(() => {
+    if (loading || !hydrated || shortcutHandled.current) return
+    const mode = new URLSearchParams(window.location.search).get('mode')
+    if (mode !== 'add' && mode !== 'checkins') return
+    const target = document.getElementById(mode === 'add' ? 'habit-name' : 'checkins')
+    if (!target) return
+    shortcutHandled.current = true
+    target.scrollIntoView?.({ block: 'center' })
+    if (mode === 'add') target.focus()
+  }, [loading, hydrated])
+
   // Remove splash screen when data is loaded
   useEffect(() => {
     if ((!loading || storageError) && !hydrated) {
@@ -98,6 +110,7 @@ const Shell = () => {
     try {
       await window.triggerInstall()
     } finally {
+      dispatch({ type: 'setInstallAvailable', payload: Boolean(window.__NAMAMI_INSTALL_READY) })
       dispatch({ type: 'setInstalling', payload: false })
     }
   }
