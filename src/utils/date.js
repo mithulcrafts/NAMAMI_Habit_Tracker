@@ -1,7 +1,19 @@
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`)
 
+// Stored YYYY-MM-DD keys are local calendar days, not UTC timestamps.
+const parseDate = (value) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number)
+    const date = new Date(0)
+    date.setFullYear(year, month - 1, day)
+    date.setHours(0, 0, 0, 0)
+    return date
+  }
+  return new Date(value)
+}
+
 export const formatDate = (dateObj) => {
-  const d = typeof dateObj === 'string' ? new Date(dateObj) : dateObj
+  const d = typeof dateObj === 'string' ? parseDate(dateObj) : dateObj
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
@@ -36,7 +48,7 @@ export const getLastNDates = (days) =>
   Array.from({ length: days }).map((_, idx) => getPastDate(days - idx - 1))
 
 export const startOfWeek = (dateKey) => {
-  const d = new Date(dateKey)
+  const d = parseDate(dateKey)
   const day = d.getDay()
   d.setDate(d.getDate() - day)
   return formatDate(d)

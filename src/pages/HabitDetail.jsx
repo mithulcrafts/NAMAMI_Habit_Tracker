@@ -75,7 +75,7 @@ export const HabitDetail = ({
             {habit.isDailyHabit ? 'ONGOING DAILY HABIT' : `TARGET: ${habit.targetDays} DAYS`} · FREQUENCY:{' '}
             {habit.frequency.toUpperCase()}
           </span>
-          <span>LAST DONE: {lastCheck ? formatDate(new Date(lastCheck)) : '—'}</span>
+          <span>LAST DONE: {lastCheck ? formatDate(lastCheck) : '—'}</span>
         </div>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
           <div
