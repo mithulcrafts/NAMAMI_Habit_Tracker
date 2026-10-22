@@ -15,6 +15,7 @@ import { useToday } from '../hooks/useToday'
 import { currentStreak, getHabitPeriods, getGlobalPeriods } from '../utils/schedule'
 import { initializeStreakEarnings, reconcileStreakEarnings, earnedStreakPoints } from '../utils/streakEarnings'
 import { legacyStats } from '../utils/legacyScoring'
+import { getBadgeEvents, initializeBadgeTracking } from '../utils/streakBadges'
 const SCHEMA_VERSION = 6
 const STREAK_FREEZE_COST = 60
 
@@ -178,27 +179,14 @@ const deriveStats = (habits, settings, today = todayKey(), journal) => {
 const checkBadgesEarned = (habits, points) => {
   const badges = []
   
-  // Streak-based badges (per habit)
-  habits.forEach((habit) => {
-    BADGE_DEFINITIONS.filter(b => b.type === 'streak').forEach((badge) => {
-      const currentMilestone = Math.floor(habit.streak / badge.requirement)
-      const previousMilestone = Math.floor((habit.previousStreak || 0) / badge.requirement)
-      
-      // Award badge each time we reach a new "batch" of this requirement
-      // E.g., if requirement is 3: earned at 3, 6, 9, 12, etc.
-      if (currentMilestone > previousMilestone) {
-        for (let i = previousMilestone + 1; i <= currentMilestone; i++) {
-          badges.push({
-            id: `${habit.id}-${badge.id}-${i}`,
-            badgeId: badge.id,
-            habitId: habit.id,
-            habitName: habit.name,
-            earnedAt: todayKey(),
-            milestone: i,
-          })
-        }
-      }
-    })
+  habits.forEach(habit => {
+    const seen = new Set(habit.streakMilestones?.badgePeriods || [])
+    for (const event of getBadgeEvents(habit)) {
+      if (seen.has(event.id)) continue
+      badges.push({ id: 'streak-badge:' + event.id, badgeId: 'streak-' + event.threshold,
+        habitId: habit.id, habitName: habit.name, earnedAt: event.date,
+        milestone: event.milestone, frequency: habit.frequency })
+    }
   })
 
   // Points-based badges (global)
@@ -226,13 +214,13 @@ const pickQuote = (category, customQuotes, daySeed) => {
 }
 
 const prepareEarnings = (saved) => {
-  if (saved.streakEarnings) return saved
+  if (saved.streakEarnings) return initializeBadgeTracking(saved)
   const current = deriveStats(saved.habits, saved.settings)
   const releasedPoints = legacyStats(saved.habits, saved.settings).points
   // Keep any balance that the released app would display. Historical award
   // amounts were not stored, so do not invent retroactive milestone payments.
   const opening = Math.max(current.currentBonus, releasedPoints - current.nonStreakPoints, 0)
-  return initializeStreakEarnings(saved, opening)
+  return initializeBadgeTracking(initializeStreakEarnings(saved, opening))
 }
 
 const migrateData = (saved) => {
@@ -714,8 +702,11 @@ export const AppProvider = ({ children }) => {
 
       const updatedHabits = prev.habits.map((habit) => {
         const updated = habits.find((h) => h.id === habit.id)
-        if (updated && updated.streak !== habit.previousStreak) {
-          return { ...habit, previousStreak: updated.streak }
+        const seen = new Set(habit.streakMilestones?.badgePeriods || [])
+        const additions = getBadgeEvents(habit, today).map(event => event.id).filter(id => !seen.has(id))
+        if (updated && (updated.streak !== habit.previousStreak || additions.length || !habit.streakMilestones?.badgePeriods)) {
+          return { ...habit, previousStreak: updated.streak,
+            streakMilestones: { ...habit.streakMilestones, badgePeriods: [...seen, ...additions] } }
         }
         return habit
       })
