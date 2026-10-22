@@ -229,6 +229,14 @@ const Shell = () => {
           </div>
         </div>
 
+        {storageError?.kind === 'save' && (
+          <div role="alert" className="rounded-md border p-3" style={{ color: 'var(--text-primary)' }}>
+            <p>Your latest changes could not be saved. Keep this app open and retry.</p>
+            <p>{storageError.message}</p>
+            <button type="button" className="mt-2 rounded-md border px-4 py-2" onClick={retryStorage}>Retry</button>
+          </div>
+        )}
+
         {/* Page Content */}
         {pageContent}
       </div>

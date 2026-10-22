@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import localforage from 'localforage'
 import { generalQuotes, gitaQuotes } from '../data/quotes'
 import {
@@ -615,9 +615,16 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [storageError, setStorageError] = useState(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
+  const [saveAttempt, setSaveAttempt] = useState(0)
+  const saveQueue = useRef(Promise.resolve())
   const retryStorage = () => {
-    setStorageError(null)
-    setLoadAttempt(attempt => attempt + 1)
+    if (loading) {
+      setStorageError(null)
+      setLoadAttempt(attempt => attempt + 1)
+    } else {
+      // Retry the in-memory changes, never reload over an unsaved check-in.
+      setSaveAttempt(attempt => attempt + 1)
+    }
   }
 
   useEffect(() => {
@@ -639,10 +646,20 @@ export const AppProvider = ({ children }) => {
   }, [loadAttempt])
 
   useEffect(() => {
-    if (!loading) {
-      localforage.setItem(STORAGE_KEY, state)
-    }
-  }, [state, loading])
+    if (loading) return
+    let active = true
+    // Preserve write order even when IndexedDB is slow. Every queued snapshot
+    // includes earlier edits; an old save must never finish after a newer save.
+    saveQueue.current = saveQueue.current
+      .then(() => localforage.setItem(STORAGE_KEY, state))
+      .then(() => {
+        if (active) setStorageError(null)
+      })
+      .catch((error) => {
+        if (active) setStorageError({ kind: 'save', message: error.message })
+      })
+    return () => { active = false }
+  }, [state, loading, saveAttempt])
 
   // Apply theme to document
   useEffect(() => {
