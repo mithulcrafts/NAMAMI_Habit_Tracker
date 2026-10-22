@@ -68,9 +68,11 @@ self.addEventListener('fetch', (event) => {
           cache.put(request, copy);
           return networkResponse;
         } catch {
-          const cached = await caches.match(request);
+          const navigationCache = await caches.open(NAV_CACHE);
+          const cached = await navigationCache.match(request) || await navigationCache.match(OFFLINE_FALLBACK);
           if (cached) return cached;
-          return caches.match(OFFLINE_FALLBACK);
+          const runtimeCache = await caches.open(RUNTIME_CACHE);
+          return runtimeCache.match(OFFLINE_FALLBACK);
         }
       })()
     );
